@@ -11,7 +11,7 @@ consumer = KafkaConsumer(
     enable_auto_commit=True
 )
 
-BRONZE_PATH = "data_lake/bronze/news.json"
+BRONZE_PATH = "data_lake/bronze/articles.json"
 
 os.makedirs("data_lake/bronze", exist_ok=True)
 
