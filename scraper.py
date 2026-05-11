@@ -1,66 +1,70 @@
+from kafka import KafkaProducer
 import requests
 from bs4 import BeautifulSoup
-from kafka import KafkaProducer
 import json
 import hashlib
 from datetime import datetime
 
-# ======================
-# KAFKA PRODUCER
-# ======================
+# ---------------- Producer Kafka ----------------
 producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
-def generate_id(title, url):
-    return hashlib.md5((title + url).encode()).hexdigest()
+# ---------------- Utils ----------------
+def generate_id(text):
+    return hashlib.md5(text.encode()).hexdigest()
 
-def send_to_kafka(article):
-    article["id"] = generate_id(article["title"], article["url"])
-    article["scraped_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def send_to_kafka(data):
+    producer.send("news-topic", data)
+    print(f"📤 Sent: {data['source']}")
 
-    producer.send("news_topic", article)
-    print("📤 Sent:", article["title"])
-
-
-# ======================
-# SCRAPING BBC (exemple simple)
-# ======================
+# ---------------- BBC SCRAPER ----------------
 def scrape_bbc():
     url = "https://www.bbc.com/news"
-    res = requests.get(url)
-    soup = BeautifulSoup(res.text, "html.parser")
+    soup = BeautifulSoup(requests.get(url).text, "html.parser")
 
-    articles = []
+    for article in soup.find_all("h3"):
+        title = article.get_text(strip=True)
 
-    for a in soup.find_all("a"):
-        title = a.get_text(strip=True)
-        link = a.get("href")
-
-        if title and link and "/news" in link:
-            if not link.startswith("http"):
-                link = "https://www.bbc.com" + link
-
-            articles.append({
+        if title:
+            send_to_kafka({
+                "id": generate_id(title),
                 "title": title,
                 "source": "BBC",
-                "url": link
+                "url": url,
+                "scraped_at": str(datetime.now())
             })
 
-    return articles
+# ---------------- HESPRESS SCRAPER ----------------
+def scrape_hespress():
+    url = "https://www.hespress.com/"
+    soup = BeautifulSoup(requests.get(url).text, "html.parser")
 
+    seen = set()
 
-# ======================
-# MAIN PIPELINE
-# ======================
+    for tag in soup.select("h2, h3"):
+        title = " ".join(tag.get_text(strip=True).split())
+
+        if title and len(title) > 10 and title not in seen:
+            seen.add(title)
+
+            send_to_kafka({
+                "id": generate_id(title),
+                "title": title,
+                "source": "Hespress",
+                "url": url,
+                "scraped_at": str(datetime.now())
+            })
+
+# ---------------- MAIN ----------------
 if __name__ == "__main__":
     print("🚀 START SCRAPING")
 
-    articles = scrape_bbc()
-
-    for article in articles:
-        send_to_kafka(article)
+    scrape_bbc()
+    scrape_hespress()
 
     producer.flush()
+    producer.close()
+
     print("✅ DONE")

@@ -3,14 +3,16 @@ import json
 import os
 from datetime import datetime
 
+# ---------------- Consumer Kafka ----------------
 consumer = KafkaConsumer(
-    'news_topic',
+    'news-topic',   # ⚠️ MUST BE SAME NAME
     bootstrap_servers='localhost:9092',
     value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-    auto_offset_reset='latest',
+    auto_offset_reset='earliest',
     enable_auto_commit=True
 )
 
+# ---------------- Storage ----------------
 BRONZE_PATH = "data_lake/bronze/articles.json"
 
 os.makedirs("data_lake/bronze", exist_ok=True)
@@ -28,6 +30,7 @@ def save_data(data):
     with open(BRONZE_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+# ---------------- LOOP ----------------
 print("🚀 Consumer started...")
 
 for msg in consumer:
