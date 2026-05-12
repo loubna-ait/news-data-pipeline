@@ -3,9 +3,9 @@ import json
 import os
 from datetime import datetime
 
-# ---------------- Consumer Kafka ----------------
+# ---------------- Kafka Consumer ----------------
 consumer = KafkaConsumer(
-    'news-topic',   # ⚠️ MUST BE SAME NAME
+    'news-topic',
     bootstrap_servers='localhost:9092',
     value_deserializer=lambda x: json.loads(x.decode('utf-8')),
     auto_offset_reset='earliest',
@@ -36,11 +36,21 @@ print("🚀 Consumer started...")
 for msg in consumer:
     article = msg.value
 
-    article["ingested_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # ✅ NORMALISATION (IMPORTANT)
+    normalized_article = {
+        "title": article.get("title", ""),
+        "author": "Unknown",
+        "date": article.get("scraped_at", ""),
+        "category": "General",
+        "content": article.get("content", ""),
+        "source": article.get("source", ""),
+        "url": article.get("url", ""),
+        "ingested_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    }
 
+    # Load + Save
     data = load_data()
-    data.append(article)
-
+    data.append(normalized_article)
     save_data(data)
 
-    print("📥 Saved:", article.get("title", "NO TITLE"))
+    print("📥 Saved:", normalized_article["title"])

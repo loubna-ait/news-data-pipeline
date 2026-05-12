@@ -17,12 +17,14 @@ def generate_id(text):
 
 def send_to_kafka(data):
     producer.send("news-topic", data)
-    print(f"📤 Sent: {data['source']}")
+    print(f"📤 Sent: {data['source']} - {data['title'][:40]}")
 
 # ---------------- BBC SCRAPER ----------------
 def scrape_bbc():
     url = "https://www.bbc.com/news"
-    soup = BeautifulSoup(requests.get(url).text, "html.parser")
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    soup = BeautifulSoup(requests.get(url, headers=headers).text, "html.parser")
 
     for article in soup.find_all("h3"):
         title = article.get_text(strip=True)
@@ -31,6 +33,10 @@ def scrape_bbc():
             send_to_kafka({
                 "id": generate_id(title),
                 "title": title,
+                "author": "BBC News",
+                "date": str(datetime.now().date()),
+                "category": "News",
+                "content": "",
                 "source": "BBC",
                 "url": url,
                 "scraped_at": str(datetime.now())
@@ -39,7 +45,9 @@ def scrape_bbc():
 # ---------------- HESPRESS SCRAPER ----------------
 def scrape_hespress():
     url = "https://www.hespress.com/"
-    soup = BeautifulSoup(requests.get(url).text, "html.parser")
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    soup = BeautifulSoup(requests.get(url, headers=headers).text, "html.parser")
 
     seen = set()
 
@@ -52,6 +60,10 @@ def scrape_hespress():
             send_to_kafka({
                 "id": generate_id(title),
                 "title": title,
+                "author": "Hespress",
+                "date": str(datetime.now().date()),
+                "category": "News",
+                "content": "",
                 "source": "Hespress",
                 "url": url,
                 "scraped_at": str(datetime.now())
