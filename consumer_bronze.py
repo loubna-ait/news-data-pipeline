@@ -3,6 +3,19 @@ import json
 import os
 from datetime import datetime
 
+# ---------------- MinIO ----------------
+from minio import Minio
+from io import BytesIO
+
+client = Minio(
+    "localhost:9000",
+    access_key="minioadmin",
+    secret_key="minioadmin",
+    secure=False
+)
+
+BUCKET = "news-bronze"
+
 # ---------------- Kafka Consumer ----------------
 consumer = KafkaConsumer(
     'news-topic',
@@ -12,9 +25,8 @@ consumer = KafkaConsumer(
     enable_auto_commit=True
 )
 
-# ---------------- Storage ----------------
+# ---------------- LOCAL BACKUP (optionnel) ----------------
 BRONZE_PATH = "data_lake/bronze/articles.json"
-
 os.makedirs("data_lake/bronze", exist_ok=True)
 
 def load_data():
@@ -30,27 +42,39 @@ def save_data(data):
     with open(BRONZE_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-# ---------------- LOOP ----------------
+# ---------------- MINIO UPLOAD ----------------
+def upload_to_minio(article):
+    data = json.dumps(article).encode("utf-8")
+    file_name = f"{article['id']}.json"
+
+    client.put_object(
+        BUCKET,
+        file_name,
+        data=BytesIO(data),
+        length=len(data),
+        content_type="application/json"
+    )
+
+    print("📦 Stored in MinIO:", file_name)
+
+# ---------------- MAIN LOOP ----------------
 print("🚀 Consumer started...")
 
 for msg in consumer:
     article = msg.value
 
-    # ✅ NORMALISATION (IMPORTANT)
-    normalized_article = {
-        "title": article.get("title", ""),
-        "author": "Unknown",
-        "date": article.get("scraped_at", ""),
-        "category": "General",
-        "content": article.get("content", ""),
-        "source": article.get("source", ""),
-        "url": article.get("url", ""),
-        "ingested_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    }
+    # timestamp ingestion
+    article["ingested_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Load + Save
+    # DEBUG
+    print("📥 message reçu :", article)
+
+    # 1. Save local file (backup)
     data = load_data()
-    data.append(normalized_article)
+    data.append(article)
     save_data(data)
 
-    print("📥 Saved:", normalized_article["title"])
+    # 2. Save in MinIO (DATA LAKE)
+    upload_to_minio(article)
+
+    print("✅ Saved:", article.get("title", "NO TITLE"))
