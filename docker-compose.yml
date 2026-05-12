@@ -22,3 +22,53 @@ services:
 
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  postgres:
+    image: postgres:15
+    container_name: postgres_dwh
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: newsdw
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  consumer_bronze:
+    image: python:3.10-slim
+    container_name: consumer_bronze
+    depends_on:
+      - kafka
+    environment:
+      DB_HOST: postgres
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      bash -c "pip install -r requirements.txt -q && python consumer_bronze.py"
+
+
+  airflow:
+    image: apache/airflow:2.8.0
+    container_name: airflow
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres/newsdw
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      DB_HOST: postgres
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - .:/opt/airflow/project
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "pip install -r /opt/airflow/project/requirements.txt -q &&
+               airflow db migrate &&
+               airflow users create -u admin -p admin -f Admin -l Admin -r Admin -e admin@admin.com ;
+               airflow webserver & airflow scheduler"
+
+volumes:
+  postgres_data:

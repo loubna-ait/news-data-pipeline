@@ -6,3 +6,6 @@ pandas
 numpy
 minio
 python-dotenv
+langdetect
+sqlalchemy
+psycopg2-binary
