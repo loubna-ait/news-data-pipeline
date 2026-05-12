@@ -1,6 +1,19 @@
 import pandas as pd
+import os
+import sys
 
-df = pd.read_json("data_lake/silver/silver_articles.json")
+SILVER_FILE = "data_lake/silver/silver_articles.json"
+
+if not os.path.exists(SILVER_FILE):
+    print("Silver file not found")
+    sys.exit(0)
+
+df = pd.read_json(SILVER_FILE)
+
+if df.empty:
+    print("Silver file is empty")
+    sys.exit(0)
+
 
 def check_quality(row):
     if not row["title"] or str(row["title"]).strip() == "":
