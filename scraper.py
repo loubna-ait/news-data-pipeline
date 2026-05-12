@@ -55,7 +55,7 @@ def scrape_hespress():
 
     seen = set()
 
-    for tag in soup.select("h2, h3"):
+    for tag in soup.select(".container-fluid.section1 h3"):
         title = " ".join(tag.get_text(strip=True).split())
 
         if title and len(title) > 10 and title not in seen:

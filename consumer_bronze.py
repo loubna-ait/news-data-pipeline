@@ -19,6 +19,9 @@ client = Minio(
 )
 
 BUCKET = "news-bronze"
+if not client.bucket_exists(BUCKET):
+    client.make_bucket(BUCKET)
+    print(f"Bucket created: {BUCKET}")
 
 # ---------------- Kafka Consumer ----------------
 consumer = KafkaConsumer(
@@ -63,10 +66,15 @@ def upload_to_minio(article):
 
 # ---------------- MAIN LOOP ----------------
 print("🚀 Consumer started...")
+seen_ids = set()
 
 for msg in consumer:
     article = msg.value
 
+    if article["id"] in seen_ids:
+        continue
+    seen_ids.add(article["id"])
+    
     # timestamp ingestion
     article["ingested_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 

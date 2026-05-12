@@ -4,9 +4,8 @@ from datetime import datetime
 
 with DAG(
     dag_id="news_pipeline",
-    start_date=datetime(2025, 1, 1),
-    # schedule_interval="@hourly",
-    schedule_interval="* * * * * *",
+    start_date=datetime(2026, 1, 1),
+    schedule_interval="*/5 * * * *",
     catchup=False,
 ) as dag:
 
@@ -15,14 +14,11 @@ with DAG(
     #     bash_command="cd /opt/airflow/project && python scraper.py"
     # )
     scraping = BashOperator(
-        task_id="scraping",
-        bash_command="""
-            cd /opt/airflow/project &&
-            python consumer_bronze.py &
-            python scraper.py &&
-            sleep 15 &&
-            kill %1 || true
-        """
+    task_id="scraping",
+    bash_command="""
+        cd /opt/airflow/project &&
+        python scraper.py
+    """
     )
     silver = BashOperator(
         task_id="silver_cleaning",
