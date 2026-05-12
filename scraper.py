@@ -4,10 +4,14 @@ from bs4 import BeautifulSoup
 import json
 import hashlib
 from datetime import datetime
+import os
+
+is_docker = os.getenv('DB_HOST') == 'postgres'
+KAFKA_SERVER = 'kafka:29092' if is_docker else 'localhost:9092'
 
 # ---------------- Producer Kafka ----------------
 producer = KafkaProducer(
-    bootstrap_servers='localhost:9092',
+    bootstrap_servers=KAFKA_SERVER,
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 

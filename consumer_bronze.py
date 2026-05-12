@@ -7,8 +7,12 @@ from datetime import datetime
 from minio import Minio
 from io import BytesIO
 
+is_docker = os.getenv('DB_HOST') == 'postgres'
+KAFKA_SERVER = 'kafka:29092' if is_docker else 'localhost:9092'
+MINIO_SERVER = 'minio:9000' if is_docker else 'localhost:9000'
+
 client = Minio(
-    "localhost:9000",
+    MINIO_SERVER,
     access_key="minioadmin",
     secret_key="minioadmin",
     secure=False
@@ -19,7 +23,7 @@ BUCKET = "news-bronze"
 # ---------------- Kafka Consumer ----------------
 consumer = KafkaConsumer(
     'news-topic',
-    bootstrap_servers='localhost:9092',
+    bootstrap_servers=KAFKA_SERVER,
     value_deserializer=lambda x: json.loads(x.decode('utf-8')),
     auto_offset_reset='earliest',
     enable_auto_commit=True
